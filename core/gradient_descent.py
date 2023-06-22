@@ -413,3 +413,6 @@ def wolfe_conditions_search(c1, c2):
 def precision_termination_condition(_target_function: Callable[[np.ndarray], float], points: List[np.ndarray]):
     return len(points) > 2 and np.linalg.norm(points[-1] - points[-2]) < precision
 
+
+def point_number_terminate_condition(m):
+    return lambda f, points: len(points) >= m

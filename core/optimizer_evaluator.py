@@ -23,6 +23,9 @@ class QuadraticForm(NamedTuple):
     def gradient_function(self):
         return lambda x: (2 * self.matrix @ x[:, newaxis])[:, 0]
 
+    def hessian_function(self):
+        return lambda x: 2 * self.matrix
+
 
 def random_orthonormal_basis(n):
     res = None

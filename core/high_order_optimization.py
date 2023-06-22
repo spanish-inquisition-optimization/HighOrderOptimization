@@ -9,7 +9,7 @@ from numpy import newaxis
 from numpy.linalg import LinAlgError
 
 from core.gradient_descent import gradient_descent
-from utils import symmetric_hessian_computer
+from core.utils import *
 
 
 class InverseHessianController(ABC):
@@ -70,14 +70,14 @@ class LBFGSInverseHessianController(InverseHessianController):
 class GivenInverseHessianController(InverseHessianController):
     def __init__(self, computer):
         super().__init__()
-        self.hessian_computer = computer
+        self.inv_hessian_computer = computer
 
     def approximate_inverse_hessian(self, new_point, new_gradient):
-        return self.hessian_computer(new_point)
+        return self.inv_hessian_computer(new_point)
 
     @classmethod
     def numerically_computing(cls, f):
-        return cls(symmetric_hessian_computer(f))
+        return cls(lambda x: np.linalg.inv(symmetrically_compute_hessian(f, NUMERIC_GRADIENT_COMPUTING_PRECISION, x)))
 
 
 def newton_optimize(
@@ -89,8 +89,9 @@ def newton_optimize(
         terminate_condition: Callable[[Callable[[np.ndarray], float], List[np.ndarray]], bool]
 ):
     def direction_function(x: np.ndarray, last_step_length, last_direction, **kwargs):
-        inv_h = inverse_hessian_controller.approximate_inverse_hessian(x, gradient_function(x))
-        return -inv_h @ x
+        g = gradient_function(x)
+        inv_h = inverse_hessian_controller.approximate_inverse_hessian(x, g)
+        return -inv_h @ g
 
     return gradient_descent(
         target_function,

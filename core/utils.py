@@ -78,12 +78,11 @@ def symmetrically_compute_gradient(f: Callable[[np.ndarray], float], h: float, x
 
 def symmetrically_compute_second_order_partial_derivative(f: Callable[[np.ndarray], float], h: float, x: np.ndarray,
                                                           i: int, j: int):
-    return symmetrically_compute_partial_derivative(lambda xx: symmetrically_compute_partial_derivative(f, h, xx, i), h,
-                                                    j)
+    return symmetrically_compute_partial_derivative(lambda xx: symmetrically_compute_partial_derivative(f, h, xx, i), h, x, j)
 
 
 def symmetrically_compute_hessian(f: Callable[[np.ndarray], float], h: float, x: np.ndarray):
-    np.array([
+    return np.array([
         [symmetrically_compute_second_order_partial_derivative(f, h, x, i, j) for j in range(x.size)]
         for i in range(x.size)
     ])
