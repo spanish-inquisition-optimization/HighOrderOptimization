@@ -102,8 +102,8 @@ def newton_optimize(
         return -inv_h @ g
 
     inverse_hessian_controller.absorb_initial_approximation(
-        symmetrically_compute_hessian(target_function, NUMERIC_GRADIENT_COMPUTING_PRECISION, x0) # TODO: Use provided gradient or add optional exact hessian to do better
-        # np.eye(x0.size)
+        # symmetrically_compute_hessian(target_function, NUMERIC_GRADIENT_COMPUTING_PRECISION, x0) # TODO: Use provided gradient or add optional exact hessian to do better
+        np.eye(x0.size)
     )
     # print("[newton_optimize] Computed initial approximation")
 
