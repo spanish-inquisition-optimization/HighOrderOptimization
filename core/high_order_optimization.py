@@ -31,6 +31,8 @@ class BFGSInverseHessianController(InverseHessianController):
         self.old_point = None
 
     def approximate_inverse_hessian(self, point, gradient):
+        assert self.inv_hessian is not None, "Should provide initial approximation first"
+
         if self.old_point is not None:
             # Update hessian approximation
             s = point - self.old_point
@@ -40,16 +42,20 @@ class BFGSInverseHessianController(InverseHessianController):
             # Expand equation and put parentheses properly
             # to avoid matrix-matrix operations which are O(n^3)
             def pre_multiply(m):
-                return s[:, newaxis] @ (y @ m)
+                return s[:, newaxis] @ (y @ m)[newaxis]
 
             def post_multiply(m):
-                return (m @ y[:, newaxis]) @ s
+                return (m @ y[:, newaxis]) @ s[newaxis]
 
+            old_ih = np.copy(self.inv_hessian)
             self.inv_hessian += \
                 - rho * post_multiply(self.inv_hessian) \
                 - rho * pre_multiply(self.inv_hessian) \
                 + rho ** 2 * post_multiply(pre_multiply(self.inv_hessian)) \
-                + rho * s[:, newaxis] @ s
+                + rho * s[:, newaxis] @ s[newaxis]
+            # print(np.linalg.matrix_rank(old_ih - self.inv_hessian))  # Is always 2 as expected
+
+        # print(self.inv_hessian)
 
         self.old_gradient = gradient
         self.old_point = point
@@ -88,10 +94,15 @@ def newton_optimize(
         linear_search,
         terminate_condition: Callable[[Callable[[np.ndarray], float], List[np.ndarray]], bool]
 ):
-    def direction_function(x: np.ndarray, last_step_length, last_direction, **kwargs):
+    def direction_function(x: np.ndarray, *args, **kwargs):
         g = gradient_function(x)
         inv_h = inverse_hessian_controller.approximate_inverse_hessian(x, g)
         return -inv_h @ g
+
+    inverse_hessian_controller.absorb_initial_approximation(
+        # symmetrically_compute_hessian(target_function, NUMERIC_GRADIENT_COMPUTING_PRECISION, x0) # TODO: Use provided gradient or add optional exact hessian to do better
+        np.eye(x0.size)
+    )
 
     return gradient_descent(
         target_function,
