@@ -60,18 +60,41 @@ def coordinate_vector_like(coordinate_index: int, reference: np.ndarray):
 NUMERIC_GRADIENT_COMPUTING_PRECISION = 1e-5
 
 
+def symmetrically_compute_partial_derivative(f: Callable[[np.ndarray], float], h: float, x: np.ndarray, i: int):
+    # This trick only works on functions defined
+    # in terms of scalar (or dimension-independent) np operations (aka ufuncs) which can thus be vectorized…
+    # return (f(x[:, newaxis] + h * np.eye(n)) - f(x[:, newaxis] - h * np.eye(n))) / (2 * h)
+
+    # This one is a more straightforward way:
+    return (f(x + h * coordinate_vector_like(i, x)) - f(x - h * coordinate_vector_like(i, x))) / (2 * h)
+
+
+def symmetrically_compute_gradient(f: Callable[[np.ndarray], float], h: float, x: np.ndarray):
+    return np.array([
+        symmetrically_compute_partial_derivative(f, h, x, i)
+        for i in range(x.size)
+    ])
+
+
+def symmetrically_compute_second_order_partial_derivative(f: Callable[[np.ndarray], float], h: float, x: np.ndarray,
+                                                          i: int, j: int):
+    return symmetrically_compute_partial_derivative(lambda xx: symmetrically_compute_partial_derivative(f, h, xx, i), h,
+                                                    j)
+
+
+def symmetrically_compute_hessian(f: Callable[[np.ndarray], float], h: float, x: np.ndarray):
+    np.array([
+        [symmetrically_compute_second_order_partial_derivative(f, h, x, i, j) for j in range(x.size)]
+        for i in range(x.size)
+    ])
+
+
 def symmetric_gradient_computer(f: Callable[[np.ndarray], float], h: float = NUMERIC_GRADIENT_COMPUTING_PRECISION):
-    def computer(x):
-        # This trick only works on functions defined
-        # in terms of scalar (or dimension-independent) np operations (aka ufuncs) which can thus be vectorized…
-        # return (f(x[:, newaxis] + h * np.eye(n)) - f(x[:, newaxis] - h * np.eye(n))) / (2 * h)
+    return lambda x: symmetrically_compute_gradient(f, h, x)
 
-        return np.array([
-            (f(x + h * coordinate_vector_like(i, x)) - f(x - h * coordinate_vector_like(i, x))) / (2 * h)
-            for i in range(x.size)
-        ])
 
-    return computer
+def symmetric_hessian_computer(f: Callable[[np.ndarray], float], h: float = NUMERIC_GRADIENT_COMPUTING_PRECISION):
+    return lambda x: symmetrically_compute_hessian(f, h, x)
 
 
 def n_calls_mocker(f):

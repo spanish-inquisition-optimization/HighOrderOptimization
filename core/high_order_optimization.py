@@ -1,4 +1,5 @@
 from typing import Callable, List
+from abc import ABC, abstractmethod
 
 import numpy as np
 import scipy.constants
@@ -7,7 +8,7 @@ from math import exp, floor, sqrt
 from numpy import newaxis
 from numpy.linalg import LinAlgError
 
-from abc import ABC, abstractmethod
+from utils import symmetric_hessian_computer
 
 
 class InverseHessianController(ABC):
@@ -72,6 +73,14 @@ class GivenInverseHessianController(InverseHessianController):
 
     def approximate_inverse_hessian(self, new_point, new_gradient):
         return self.hessian_computer(new_point)
+
+    @classmethod
+    def numerically_computing(cls, f):
+        return cls(symmetric_hessian_computer(f))
+
+
+def newton_optimize():
+    pass
 
 
 def gauss_newton(residuals: List[Callable[[np.ndarray], float]],
