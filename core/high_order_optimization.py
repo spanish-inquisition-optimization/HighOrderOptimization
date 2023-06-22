@@ -55,7 +55,7 @@ class BFGSInverseHessianController(InverseHessianController):
                 + rho * s[:, newaxis] @ s[newaxis]
             delta = old_ih - self.inv_hessian
             # print(np.linalg.matrix_rank(delta))  # Is always 2 as expected
-            print(np.linalg.norm(delta) / np.linalg.norm(old_ih))
+            # print(np.linalg.norm(delta) / np.linalg.norm(old_ih))
 
         # print(self.inv_hessian)
 
@@ -102,10 +102,10 @@ def newton_optimize(
         return -inv_h @ g
 
     inverse_hessian_controller.absorb_initial_approximation(
-        # symmetrically_compute_hessian(target_function, NUMERIC_GRADIENT_COMPUTING_PRECISION, x0) # TODO: Use provided gradient or add optional exact hessian to do better
-        np.eye(x0.size)
+        symmetrically_compute_hessian(target_function, NUMERIC_GRADIENT_COMPUTING_PRECISION, x0) # TODO: Use provided gradient or add optional exact hessian to do better
+        # np.eye(x0.size)
     )
-    print("[newton_optimize] Computed initial approximation")
+    # print("[newton_optimize] Computed initial approximation")
 
     return gradient_descent(
         target_function,
