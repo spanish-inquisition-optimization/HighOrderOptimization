@@ -8,6 +8,7 @@ from math import exp, floor, sqrt
 from numpy import newaxis
 from numpy.linalg import LinAlgError
 
+from core.gradient_descent import gradient_descent
 from utils import symmetric_hessian_computer
 
 
@@ -79,8 +80,26 @@ class GivenInverseHessianController(InverseHessianController):
         return cls(symmetric_hessian_computer(f))
 
 
-def newton_optimize():
-    pass
+def newton_optimize(
+        target_function: Callable[[np.ndarray], float],
+        gradient_function: Callable[[np.ndarray], np.ndarray],
+        inverse_hessian_controller: InverseHessianController,
+        x0: np.ndarray,
+        linear_search,
+        terminate_condition: Callable[[Callable[[np.ndarray], float], List[np.ndarray]], bool]
+):
+    def direction_function(x: np.ndarray, last_step_length, last_direction, **kwargs):
+        inv_h = inverse_hessian_controller.approximate_inverse_hessian(x, gradient_function(x))
+        return -inv_h @ x
+
+    return gradient_descent(
+        target_function,
+        gradient_function,
+        direction_function,
+        x0,
+        linear_search,
+        terminate_condition
+    )
 
 
 def gauss_newton(residuals: List[Callable[[np.ndarray], float]],
