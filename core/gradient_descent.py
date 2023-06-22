@@ -413,22 +413,3 @@ def wolfe_conditions_search(c1, c2):
 def precision_termination_condition(_target_function: Callable[[np.ndarray], float], points: List[np.ndarray]):
     return len(points) > 2 and np.linalg.norm(points[-1] - points[-2]) < precision
 
-
-def coordinate_vector_like(coordinate_index: int, reference: np.ndarray):
-    res = np.zeros_like(reference)
-    res[coordinate_index] = 1
-    return res
-
-
-def symmetric_gradient_computer(f: Callable[[np.ndarray], float], h: float = precision):
-    def computer(x):
-        # This trick only works on functions defined
-        # in terms of scalar (or dimension-independent) np operations (aka ufuncs) which can thus be vectorized…
-        # return (f(x[:, newaxis] + h * np.eye(n)) - f(x[:, newaxis] - h * np.eye(n))) / (2 * h)
-
-        return np.array([
-            (f(x + h * coordinate_vector_like(i, x)) - f(x - h * coordinate_vector_like(i, x))) / (2 * h)
-            for i in range(x.size)
-        ])
-
-    return computer

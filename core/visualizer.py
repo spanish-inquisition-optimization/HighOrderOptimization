@@ -4,8 +4,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 from numpy import newaxis
 
-from core.gradient_descent import symmetric_gradient_computer, gradient_descent, precision
-from core.optimizer_evaluator import n_calls_mocker, generate_positive_definite_quadratic_form, random_normalized_vector
+from core.gradient_descent import gradient_descent, precision
+from core.optimizer_evaluator import generate_positive_definite_quadratic_form, random_normalized_vector
+from core.utils import supports_argument, symmetric_gradient_computer, AutoVectorizedFunction, n_calls_mocker
 
 
 class SearchRegion2d(NamedTuple):
@@ -18,39 +19,6 @@ def debug_mesh(roi: SearchRegion2d, n=1000):
         np.linspace(roi.x_range[0], roi.x_range[1], n),
         np.linspace(roi.y_range[0], roi.y_range[1], n)
     )
-
-
-def partially_vectorize(f, f_input_dims):
-    def vectorized_f(t):
-        if len(t.shape) == f_input_dims:
-            return f(t)
-        else:
-            splitted = np.split(t, t.shape[-1], axis=-1)
-            slices_along_last_axis = [splitted[i][..., 0] for i in range(t.shape[-1])]
-            return np.concatenate([vectorized_f(s)[..., newaxis] for s in slices_along_last_axis], axis=-1)
-
-    return vectorized_f
-
-
-def supports_argument(f, smple_arg):
-    try:
-        f(smple_arg)
-        return True
-    except:
-        return False
-
-
-class AutoVectorizedFunction:
-    def __init__(self, f, f_input_dims=None):
-        self.f = f
-        self.f_input_dims = f_input_dims
-
-    def __call__(self, t):
-        try:
-            return self.f(t)
-        except:
-            assert self.f_input_dims is not None
-            return partially_vectorize(self.f, self.f_input_dims)(t)
 
 
 def auto_meshgrid(f, roi: SearchRegion2d):

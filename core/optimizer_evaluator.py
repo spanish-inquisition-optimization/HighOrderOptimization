@@ -96,30 +96,3 @@ def average_iterations_until_convergence(form_generator: Callable[[], QuadraticF
 def logspace_range(start, stop, n, **kwargs):
     return np.logspace(np.log10(start), np.log10(stop), n, base=10, **kwargs)
 
-
-def n_calls_mocker(f):
-    def mocked(*args, **kwargs):
-        mocked.n_calls += 1
-        return f(*args, **kwargs)
-    mocked.n_calls = 0
-    return mocked
-
-
-def smoothly_criminally_call(f, *args, **kwargs):
-    res = f(*args, **kwargs)
-    if hasattr(f, "n_calls"):
-        f.n_calls -= 1
-    return res
-
-
-if __name__ == '__main__':
-    @n_calls_mocker
-    def f(x):
-        print(f"Hello, {x}!")
-
-    for i in range(5):
-        f(i)
-
-    smoothly_criminally_call(f, 12412)
-
-    assert f.n_calls == 5
