@@ -48,7 +48,7 @@ class BFGSNewtonDirectionApproximator(NewtonDirectionApproximator):
             s = point - self.old_point
             y = gradient - self.old_gradient
             rho = 1 / (s @ y)
-            if self.iteration <= 3:  # Second iteration
+            if self.iteration <= 1:  # Second iteration
                 gamma = s @ y / y @ y  # H^0 = gamma * I
                 self.inv_hessian = np.eye(point.size) * gamma
 
