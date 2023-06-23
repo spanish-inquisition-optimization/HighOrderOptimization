@@ -256,27 +256,38 @@ def dogleg(
         current = points[-1]
         jac = np.array([grad(current) for grad in gradients])
         b = np.transpose(jac) @ jac
-        gn = -np.linalg.inv(np.transpose(jac) @ jac) @ np.transpose(jac) @ np.array([r(current) for r in residuals])
+
+        try:
+            gn = -np.linalg.inv(np.transpose(jac) @ jac) @ np.transpose(jac) @ np.array([r(current) for r in residuals])
+        except LinAlgError:
+            # go away from bad point
+            gn = np.random.normal(size=x0.shape[0])
+            gn /= np.linalg.norm(gn)
+            gn *= trusted / 2
         p = np.zeros(x0.shape)
 
         if np.linalg.norm(gn - current) < trusted:
             p = gn
         else:
-            sd = steepest_descent(
+            sdp = steepest_descent(
                 f, df, current,
                 linear_search,
                 lambda _, ps: len(ps) > 1
-            )[-1] - current
+            )
 
-            if np.linalg.norm(sd - current) > trusted:
-                p = sd * (trusted / np.linalg.norm(sd))
+            sd = sdp[-1] - current
+
+            if np.linalg.norm(sd) > trusted:
+                p = (trusted / np.linalg.norm(sd)) * sd
+                if f(current + p) > f(sdp[-1]):
+                    p = sd
             else:
                 t = binary_search(lambda t: np.linalg.norm((gn - sd) * t + sd - current) > trusted, 0, 1)
                 p = (gn - sd) * t + sd
 
         # update trusted region
         b = np.transpose(jac) @ jac
-        m = lambda p: f(current) + np.dot(p, df(current)) + 0.5 * p @ b @ np.transpose(p)
+        m = lambda p: f(current) + np.dot(p, df(current)) + (0.5 * p) @ b @ np.transpose(p)
         rho = (f(current) - f(current + p)) / (m(np.zeros(x0.shape)) - m(p))
 
         if rho < 0.25:
