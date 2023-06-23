@@ -141,7 +141,6 @@ class GivenNewtonDirectionApproximator(NewtonDirectionApproximator):
 
 
 def numeric_inverse_jacobian_approximator(f, g, x0):
-    # TODO: Use provided gradient or add optional exact hessian to do better
     return np.linalg.inv(symmetrically_compute_hessian_by_gradient(f, g, NUMERIC_GRADIENT_COMPUTING_PRECISION, x0))
 
 
@@ -174,7 +173,7 @@ def newton_optimize(
     direction_approximator.absorb_initial_approximation(
         initial_approximator(target_function, gradient_function, x0)
     )
-    print("[newton_optimize] Computed initial approximation")
+    # print("[newton_optimize] Computed initial approximation")
 
     return gradient_descent(
         target_function,

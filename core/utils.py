@@ -124,7 +124,36 @@ def smoothly_criminally_call(f, *args, **kwargs):
     return res
 
 
+from contextlib import contextmanager
+import threading
+import _thread
+
+class TimeoutException(Exception):
+    def __init__(self, msg=''):
+        self.msg = msg
+
+@contextmanager
+def time_limit(seconds, msg=''):
+    timer = threading.Timer(seconds, lambda: _thread.interrupt_main())
+    timer.start()
+    try:
+        yield
+    except KeyboardInterrupt:
+        raise TimeoutException("Timed out for operation {}".format(msg))
+    finally:
+        # if the action ends in specified time, timer is canceled
+        timer.cancel()
+
+
 if __name__ == '__main__':
+
+    import time
+    # ends after 1 second
+    with time_limit(10, 'sleep'):
+        while True:
+            pass
+
+
     @n_calls_mocker
     def f(x):
         print(f"Hello, {x}!")
