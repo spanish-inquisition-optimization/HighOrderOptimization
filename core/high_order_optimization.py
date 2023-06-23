@@ -38,15 +38,20 @@ class BFGSNewtonDirectionApproximator(NewtonDirectionApproximator):
         super().__init__()
         self.old_gradient = None
         self.old_point = None
+        self.iteration = 0
 
     def approximate_inverse_hessian(self, point, gradient):
-        assert self.inv_hessian is not None, "Should provide initial approximation first"
+        # assert self.inv_hessian is not None, "Should provide initial approximation first"
 
         if self.old_point is not None:
             # Update hessian approximation
             s = point - self.old_point
             y = gradient - self.old_gradient
             rho = 1 / (s @ y)
+            if self.iteration <= 1:  # Second iteration
+                gamma = s @ y / y @ y  # H^0 = gamma * I
+                self.inv_hessian = np.eye(point.size) * gamma
+
 
             # Expand equation and put parentheses properly
             # to avoid matrix-matrix operations which are O(n^3)
@@ -70,6 +75,7 @@ class BFGSNewtonDirectionApproximator(NewtonDirectionApproximator):
 
         self.old_gradient = gradient
         self.old_point = point
+        self.iteration += 1
         return self.inv_hessian
 
 
@@ -130,25 +136,24 @@ class GivenNewtonDirectionApproximator(NewtonDirectionApproximator):
         return self.inv_hessian_computer(point)
 
     @classmethod
-    def numerically_computing(cls, f):
-        return cls(lambda x: np.linalg.inv(symmetrically_compute_hessian(f, NUMERIC_GRADIENT_COMPUTING_PRECISION, x)))
+    def numerically_computing(cls, f, g):
+        return cls(lambda x: np.linalg.inv(symmetrically_compute_hessian_by_gradient(f, g, NUMERIC_GRADIENT_COMPUTING_PRECISION, x)))
 
 
-def numeric_inverse_jacobian_approximator(f, x0):
-    # TODO: Use provided gradient or add optional exact hessian to do better
-    return np.linalg.inv(symmetrically_compute_hessian(f, NUMERIC_GRADIENT_COMPUTING_PRECISION, x0))
+def numeric_inverse_jacobian_approximator(f, g, x0):
+    return np.linalg.inv(symmetrically_compute_hessian_by_gradient(f, g, NUMERIC_GRADIENT_COMPUTING_PRECISION, x0))
 
 
-def none_approximation(_f, _x0):
+def none_approximation(_f, _g, _x0):
     return None
 
 
-def eye_initial_approximation(_f, x0):
+def eye_initial_approximation(_f, _g, x0):
     return np.eye(x0.size)
 
 
 def known_initial_approximator(provider):
-    return lambda _f, x0: provider(x0)
+    return lambda _f, _g, x0: provider(x0)
 
 
 def newton_optimize(
@@ -166,9 +171,9 @@ def newton_optimize(
         return direction if direction is not None else -g
 
     direction_approximator.absorb_initial_approximation(
-        initial_approximator(target_function, x0)
+        initial_approximator(target_function, gradient_function, x0)
     )
-    print("[newton_optimize] Computed initial approximation")
+    # print("[newton_optimize] Computed initial approximation")
 
     return gradient_descent(
         target_function,
