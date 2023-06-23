@@ -242,41 +242,48 @@ def binary_search(f: Callable[[float], bool], lbound: float, rbound: float):
 def dogleg(
         residuals: List[Callable[[np.ndarray], float]],
         gradients: List[Callable[[np.ndarray], np.ndarray]],
+        max_trusted,
         linear_search,
         x0: np.ndarray,
-        trusted_region: Callable[[np.ndarray], float],
         termination_condition: Callable[[Callable, List[np.ndarray]], bool]
 ):
-    f = lambda x: sum((r(x) ** 2 for r in residuals))
+    f = lambda x: 0.5 * sum((r(x) ** 2 for r in residuals))
+    df = lambda x: sum((r(x) * g(x) for r, g in zip(residuals, gradients)))
     points = [x0]
-    current = x0
+    trusted = 1
     while not termination_condition(f, points):
-        trusted = trusted_region(current)
-
         # TODO: probably can rid of specialization of gauss-newton direction
+        current = points[-1]
         jac = np.array([grad(current) for grad in gradients])
+        b = np.transpose(jac) @ jac
         gn = -np.linalg.inv(np.transpose(jac) @ jac) @ np.transpose(jac) @ np.array([r(current) for r in residuals])
+        p = np.zeros(x0.shape)
 
         if np.linalg.norm(gn - current) < trusted:
-            current += gn
-            continue
-
-        sd = steepest_descent(
-            lambda x: 0.5 * sum((r(x) ** 2 for r in residuals)),
-            lambda x: sum((r(x) * g(x) for r, g in zip(residuals, gradients))),
-            current,
-            linear_search,
-            lambda _, ps: len(ps) > 1
-        )[-1]
-
-        if np.linalg.norm(sd - current) > trusted:
-            print(sd * (trusted / np.linalg.norm(sd)))
-            print(current)
-            current += sd * (trusted / np.linalg.norm(sd))
+            p = gn
         else:
-            t = binary_search(lambda t: np.linalg.norm((gn - sd) * t + sd - current) > trusted, 0, 1)
-            current += (gn - sd) * t + sd
+            sd = steepest_descent(
+                f, df, current,
+                linear_search,
+                lambda _, ps: len(ps) > 1
+            )[-1] - current
 
-        points.append(current)
+            if np.linalg.norm(sd - current) > trusted:
+                p = sd * (trusted / np.linalg.norm(sd))
+            else:
+                t = binary_search(lambda t: np.linalg.norm((gn - sd) * t + sd - current) > trusted, 0, 1)
+                p = (gn - sd) * t + sd
+
+        # update trusted region
+        b = np.transpose(jac) @ jac
+        m = lambda p: f(current) + np.dot(p, df(current)) + 0.5 * p @ b @ np.transpose(p)
+        rho = (f(current) - f(current + p)) / (m(np.zeros(x0.shape)) - m(p))
+
+        if rho < 0.25:
+            trusted *= 0.25
+        elif rho > 0.75 and np.linalg.norm(p) - trusted < 1e-7:
+            trusted = min(2 * trusted, max_trusted)
+
+        points.append(current + p)
 
     return points
