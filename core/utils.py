@@ -75,6 +75,15 @@ def symmetrically_compute_gradient(f: Callable[[np.ndarray], float], h: float, x
         for i in range(x.size)
     ])
 
+def symmetrically_compute_jacobian(phi: Callable[[np.ndarray], np.ndarray], h: float, x: np.ndarray):
+    n = x.size
+    m = phi(x).size
+    columns = []
+    for i in range(m):
+        columns.append(symmetrically_compute_partial_derivative(phi, h, x, i))
+    return np.array(columns).T
+    # return np.array(symmetrically_compute_gradient(lambda xx: ) for i in range(m))
+
 
 def symmetrically_compute_second_order_partial_derivative(f: Callable[[np.ndarray], float], h: float, x: np.ndarray,
                                                           i: int, j: int):
@@ -86,6 +95,9 @@ def symmetrically_compute_hessian(f: Callable[[np.ndarray], float], h: float, x:
         [symmetrically_compute_second_order_partial_derivative(f, h, x, i, j) for j in range(x.size)]
         for i in range(x.size)
     ])
+
+def symmetrically_compute_hessian_by_gradient(f: Callable[[np.ndarray], float], gradient: Callable[[np.ndarray], np.ndarray], h: float, x: np.ndarray):
+    return symmetrically_compute_jacobian(gradient, h, x)
 
 
 def symmetric_gradient_computer(f: Callable[[np.ndarray], float], h: float = NUMERIC_GRADIENT_COMPUTING_PRECISION):

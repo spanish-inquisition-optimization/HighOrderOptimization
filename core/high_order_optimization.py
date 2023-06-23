@@ -130,8 +130,8 @@ class GivenNewtonDirectionApproximator(NewtonDirectionApproximator):
         return self.inv_hessian_computer(point)
 
     @classmethod
-    def numerically_computing(cls, f):
-        return cls(lambda x: np.linalg.inv(symmetrically_compute_hessian(f, NUMERIC_GRADIENT_COMPUTING_PRECISION, x)))
+    def numerically_computing(cls, f, g):
+        return cls(lambda x: np.linalg.inv(symmetrically_compute_hessian_by_gradient(f, g, NUMERIC_GRADIENT_COMPUTING_PRECISION, x)))
 
 
 def numeric_inverse_jacobian_approximator(f, x0):
