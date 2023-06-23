@@ -26,7 +26,8 @@ class NewtonDirectionApproximator(ABC):
         pass
 
     def compute_direction(self, point, gradient) -> np.ndarray:
-        return -self.approximate_inverse_hessian(point, gradient) @ gradient
+        h = self.approximate_inverse_hessian(point, gradient)
+        return -h @ gradient if h is not None else None
 
     def absorb_step_size(self, step_size): # Called at the end of iteration: when the step along direction is chosen
         pass

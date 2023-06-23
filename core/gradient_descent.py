@@ -34,6 +34,7 @@ def gradient_descent(target_function: Callable[[np.ndarray], float],
         if norm == 0:
             continue
         if norm > 1e20:
+            print("AAAAAAGH!!!")
             return points
 
         # false positive warning: np.dot returns scalar in this case
@@ -412,7 +413,7 @@ def wolfe_conditions_search(c1, c2):
 
 
 def precision_termination_condition(_target_function: Callable[[np.ndarray], float], points: List[np.ndarray]):
-    return len(points) > 2 and np.linalg.norm(points[-1] - points[-2]) < precision
+    return len(points) > 2 and np.linalg.norm(points[-1] - points[-2]) < 1e-5
 
 
 def point_number_terminate_condition(m):
