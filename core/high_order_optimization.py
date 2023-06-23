@@ -18,8 +18,8 @@ class NewtonDirectionApproximator(ABC):
     def __init__(self):
         self.inv_hessian = None
 
-    def absorb_initial_approximation(self, initial_hessian):  # Is given an inverse hessian
-        self.inv_hessian = np.linalg.inv(initial_hessian)
+    def absorb_initial_approximation(self, initial_inv_hessian):  # Is given an inverse hessian
+        self.inv_hessian = initial_inv_hessian
 
     @abstractmethod
     def approximate_inverse_hessian(self, new_point, new_gradient):  # Supposed to return a positive definite matrix
@@ -30,6 +30,7 @@ class NewtonDirectionApproximator(ABC):
 
     def absorb_step_size(self, step_size): # Called at the end of iteration: when the step along direction is chosen
         pass
+
 
 class BFGSNewtonDirectionApproximator(NewtonDirectionApproximator):
     def __init__(self):
@@ -85,40 +86,35 @@ class LBFGSNewtonDirectionApproximator(NewtonDirectionApproximator):
         assert False, "It's too computationally expensive!"
 
     def compute_direction(self, point, gradient):
-
-        if self.old_point is not None:
-            # Update hessian approximation
+        if self.old_point is not None:  # At least second iteration
             s = point - self.old_point
             y = gradient - self.old_gradient
             gamma = s @ y / y @ y  # H^0_k = gamma * I
             self.secant_storage.append((s, y))
 
-            q = gradient
-            for (si, yi, ai) in self.secant_storage:
+            q = np.copy(gradient)
+            alphas = []
+            for (si, yi) in reversed(self.secant_storage):
                 rho = 1 / (si @ yi)
-                # TODO
+                alpha = rho * si @ q
+                alphas.append(alpha)
+                q -= alpha * yi
 
-            res = gamma * q # H^0_k * q
+            r = gamma * np.copy(q)  # H^0_k * q
 
-            for (si, yi, ai) in self.secant_storage:
+            for ((si, yi), alpha) in zip(self.secant_storage, reversed(alphas)):
                 rho = 1 / (si @ yi)
-                # TODO
+                beta = rho * yi @ r
+                r += si * (alpha - beta)
 
-
-            def pre_multiply(m):
-                return s[:, newaxis] @ (y @ m)[newaxis]
-
-            def post_multiply(m):
-                return (m @ y[:, newaxis]) @ s[newaxis]
-
-        # print(self.inv_hessian)
+            res = -r
+        else:
+            res = None
 
         self.old_gradient = gradient
         self.old_point = point
 
-        if not self.secant_storage:
-            return None  # Can't do anything reasonable at this point
-        elif len(self.secant_storage) > self.m:
+        if len(self.secant_storage) > self.m:
             self.secant_storage.popleft()
 
         return res
@@ -129,8 +125,8 @@ class GivenNewtonDirectionApproximator(NewtonDirectionApproximator):
         super().__init__()
         self.inv_hessian_computer = computer
 
-    def approximate_inverse_hessian(self, new_point, new_gradient):
-        return self.inv_hessian_computer(new_point)
+    def approximate_inverse_hessian(self, point, gradient):
+        return self.inv_hessian_computer(point)
 
     @classmethod
     def numerically_computing(cls, f):
@@ -146,7 +142,7 @@ def none_approximation(_f, _x0):
     return None
 
 
-def eye_approximation(_f, x0):
+def eye_initial_approximation(_f, x0):
     return np.eye(x0.size)
 
 
@@ -165,18 +161,13 @@ def newton_optimize(
 ):
     def direction_function(x: np.ndarray, *args, **kwargs):
         g = gradient_function(x)
-        direction = direction_approximator.approximate_inverse_hessian(x, g)
+        direction = direction_approximator.compute_direction(x, g)
         return direction if direction is not None else -g
-
-    def patched_search(f, derivative, **kwargs):
-        step = linear_search(f, derivative, **kwargs)
-        direction_approximator.absorb_step_size(step)
-        return step
 
     direction_approximator.absorb_initial_approximation(
         initial_approximator(target_function, x0)
     )
-    # print("[newton_optimize] Computed initial approximation")
+    print("[newton_optimize] Computed initial approximation")
 
     return gradient_descent(
         target_function,

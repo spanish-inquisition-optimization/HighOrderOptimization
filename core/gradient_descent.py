@@ -40,7 +40,7 @@ def gradient_descent(target_function: Callable[[np.ndarray], float],
         last_step_length = linear_search(lambda l: target_function(last_point + last_direction * l),
                                          lambda l: np.dot(last_direction, gradient_function(
                                              last_point + last_direction * l)), iteration=iteration)
-        print("Step length: ", last_step_length)
+        # print("Step length: ", last_step_length)
         next_point = last_point + last_direction * last_step_length
         points.append(next_point)
     return points
