@@ -8,23 +8,30 @@ from math import exp, floor, sqrt
 from numpy import newaxis
 from numpy.linalg import LinAlgError
 
+from collections import deque
+
 from core.gradient_descent import gradient_descent
 from core.utils import *
 
 
-class InverseHessianController(ABC):
+class NewtonDirectionApproximator(ABC):
     def __init__(self):
         self.inv_hessian = None
 
-    def absorb_initial_approximation(self, initial_hessian):
+    def absorb_initial_approximation(self, initial_hessian):  # Is given an inverse hessian
         self.inv_hessian = np.linalg.inv(initial_hessian)
 
     @abstractmethod
     def approximate_inverse_hessian(self, new_point, new_gradient):  # Supposed to return a positive definite matrix
         pass
 
+    def compute_direction(self, point, gradient) -> np.ndarray:
+        return -self.approximate_inverse_hessian(point, gradient) @ gradient
 
-class BFGSInverseHessianController(InverseHessianController):
+    def absorb_step_size(self, step_size): # Called at the end of iteration: when the step along direction is chosen
+        pass
+
+class BFGSNewtonDirectionApproximator(NewtonDirectionApproximator):
     def __init__(self):
         super().__init__()
         self.old_gradient = None
@@ -53,7 +60,7 @@ class BFGSInverseHessianController(InverseHessianController):
                 - rho * pre_multiply(self.inv_hessian) \
                 + rho ** 2 * post_multiply(pre_multiply(self.inv_hessian)) \
                 + rho * s[:, newaxis] @ s[newaxis]
-            delta = old_ih - self.inv_hessian
+            # delta = old_ih - self.inv_hessian
             # print(np.linalg.matrix_rank(delta))  # Is always 2 as expected
             # print(np.linalg.norm(delta) / np.linalg.norm(old_ih))
 
@@ -64,18 +71,60 @@ class BFGSInverseHessianController(InverseHessianController):
         return self.inv_hessian
 
 
-class LBFGSInverseHessianController(InverseHessianController):
+class LBFGSNewtonDirectionApproximator(NewtonDirectionApproximator):
+    def __init__(self, m: int):
+        """
+            m is the number of last iterations used to approximate hessian
+        """
+        super().__init__()
+        self.secant_storage = deque()
+        self.old_gradient = self.old_point = None
+        self.m = m
+
     def approximate_inverse_hessian(self, point, gradient):
+        assert False, "It's too computationally expensive!"
+
+    def compute_direction(self, point, gradient):
+
         if self.old_point is not None:
             # Update hessian approximation
-            pass
+            s = point - self.old_point
+            y = gradient - self.old_gradient
+            gamma = s @ y / y @ y  # H^0_k = gamma * I
+            self.secant_storage.append((s, y))
+
+            q = gradient
+            for (si, yi, ai) in self.secant_storage:
+                rho = 1 / (si @ yi)
+                # TODO
+
+            res = gamma * q # H^0_k * q
+
+            for (si, yi, ai) in self.secant_storage:
+                rho = 1 / (si @ yi)
+                # TODO
+
+
+            def pre_multiply(m):
+                return s[:, newaxis] @ (y @ m)[newaxis]
+
+            def post_multiply(m):
+                return (m @ y[:, newaxis]) @ s[newaxis]
+
+        # print(self.inv_hessian)
 
         self.old_gradient = gradient
         self.old_point = point
-        return self.inv_hessian
+
+        if not self.secant_storage:
+            return None  # Can't do anything reasonable at this point
+        elif len(self.secant_storage) > self.m:
+            self.secant_storage.popleft()
+
+        return res
 
 
-class GivenInverseHessianController(InverseHessianController):
+class GivenNewtonDirectionApproximator(NewtonDirectionApproximator):
     def __init__(self, computer):
         super().__init__()
         self.inv_hessian_computer = computer
@@ -88,22 +137,44 @@ class GivenInverseHessianController(InverseHessianController):
         return cls(lambda x: np.linalg.inv(symmetrically_compute_hessian(f, NUMERIC_GRADIENT_COMPUTING_PRECISION, x)))
 
 
+def numeric_inverse_jacobian_approximator(f, x0):
+    # TODO: Use provided gradient or add optional exact hessian to do better
+    return np.linalg.inv(symmetrically_compute_hessian(f, NUMERIC_GRADIENT_COMPUTING_PRECISION, x0))
+
+
+def none_approximation(_f, _x0):
+    return None
+
+
+def eye_approximation(_f, x0):
+    return np.eye(x0.size)
+
+
+def known_initial_approximator(provider):
+    return lambda _f, x0: provider(x0)
+
+
 def newton_optimize(
         target_function: Callable[[np.ndarray], float],
         gradient_function: Callable[[np.ndarray], np.ndarray],
-        inverse_hessian_controller: InverseHessianController,
+        direction_approximator: NewtonDirectionApproximator,
         x0: np.ndarray,
         linear_search,
-        terminate_condition: Callable[[Callable[[np.ndarray], float], List[np.ndarray]], bool]
+        terminate_condition: Callable[[Callable[[np.ndarray], float], List[np.ndarray]], bool],
+        initial_approximator=none_approximation
 ):
     def direction_function(x: np.ndarray, *args, **kwargs):
         g = gradient_function(x)
-        inv_h = inverse_hessian_controller.approximate_inverse_hessian(x, g)
-        return -inv_h @ g
+        direction = direction_approximator.approximate_inverse_hessian(x, g)
+        return direction if direction is not None else -g
 
-    inverse_hessian_controller.absorb_initial_approximation(
-        # symmetrically_compute_hessian(target_function, NUMERIC_GRADIENT_COMPUTING_PRECISION, x0) # TODO: Use provided gradient or add optional exact hessian to do better
-        np.eye(x0.size)
+    def patched_search(f, derivative, **kwargs):
+        step = linear_search(f, derivative, **kwargs)
+        direction_approximator.absorb_step_size(step)
+        return step
+
+    direction_approximator.absorb_initial_approximation(
+        initial_approximator(target_function, x0)
     )
     # print("[newton_optimize] Computed initial approximation")
 
