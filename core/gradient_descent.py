@@ -34,14 +34,12 @@ def gradient_descent(target_function: Callable[[np.ndarray], float],
         if norm == 0:
             continue
         if norm > 1e20:
-            print("AAAAAAGH!!!")
             return points
 
         # false positive warning: np.dot returns scalar in this case
         last_step_length = linear_search(lambda l: target_function(last_point + last_direction * l),
                                          lambda l: np.dot(last_direction, gradient_function(
                                              last_point + last_direction * l)), iteration=iteration)
-        # print("Step length: ", last_step_length)
         next_point = last_point + last_direction * last_step_length
         points.append(next_point)
     return points
@@ -58,7 +56,7 @@ def gradient_descent_with_momentum(gamma: float, nesterov=False):
                         terminate_condition: Callable[[Callable[[np.ndarray], float], List[np.ndarray]], bool]):
         def get_direction(x: np.ndarray, last_step_length=0, last_direction=None, **kwargs):
             return -(gamma * -last_direction + (1 - gamma) * -direction_function(
-                x + last_step_length * last_direction if nesterov else x, **kwargs))
+                x + last_step_length * gamma * last_direction if nesterov else x, **kwargs))
 
         return gradient_descent(target_function, gradient_function, get_direction, x0, linear_search,
                                 terminate_condition)
@@ -77,8 +75,8 @@ def adagrad_descent(target_function: Callable[[np.ndarray], float],
     def get_direction(x: np.ndarray, **kwargs):
         nonlocal G
         current_direction = -direction_function(x, **kwargs)
-        G = G + np.square(current_direction)
-        return -np.multiply(np.array([1 / (sqrt(x + 1e-8)) for x in G]), current_direction)
+        G = G + np.outer(current_direction, current_direction)
+        return -np.divide(current_direction, np.array(np.sqrt(np.diagonal(G) + 1e-8)))
 
     return gradient_descent(target_function, gradient_function, get_direction, x0, linear_search, terminate_condition)
 
@@ -98,7 +96,7 @@ def rms_prop_descent(gamma: float):
             nonlocal G
             current_direction = -direction_function(x, **kwargs)
             G = gamma * G + (1 - gamma) * np.square(current_direction)
-            return -np.multiply(np.array([1 / (sqrt(x + 1e-8)) for x in G]), current_direction)
+            return -np.divide(current_direction, np.sqrt(G + 1e-8))
 
         return gradient_descent(target_function, gradient_function, get_direction, x0, linear_search,
                                 terminate_condition)
@@ -123,8 +121,9 @@ def adam_descent(alpha: float, beta: float):
             current_direction = -direction_function(x, iteration=iteration, **kwargs)
             v = alpha * v + (1 - alpha) * current_direction
             s = beta * s + (1 - beta) * np.square(current_direction)
-            return -np.multiply(np.array([1 / (sqrt(x / (1 - beta ** (iteration + 1)) + 1e-8)) for x in s]),
-                                v / (1 - alpha ** (iteration + 1)))
+            v_normalized = v / (1 - alpha ** (iteration + 1))
+            s_normalized = s / (1 - beta ** (iteration + 1))
+            return -np.divide(v_normalized, np.sqrt(s_normalized + 1e-8))
 
         return gradient_descent(target_function, gradient_function, get_direction, x0, linear_search,
                                 terminate_condition)
@@ -413,7 +412,7 @@ def wolfe_conditions_search(c1, c2):
 
 
 def precision_termination_condition(_target_function: Callable[[np.ndarray], float], points: List[np.ndarray]):
-    return len(points) > 2 and np.linalg.norm(points[-1] - points[-2]) < 1e-5
+    return len(points) > 2 and np.linalg.norm(points[-1] - points[-2]) < precision
 
 
 def point_number_terminate_condition(m):
