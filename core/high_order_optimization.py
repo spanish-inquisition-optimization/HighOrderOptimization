@@ -10,7 +10,7 @@ from numpy.linalg import LinAlgError
 
 from collections import deque
 
-from core.gradient_descent import gradient_descent
+from core.gradient_descent import gradient_descent, steepest_descent
 from core.utils import *
 
 
@@ -219,3 +219,59 @@ def gauss_newton_with_approx_grad(residuals: List[Callable[[np.ndarray], float]]
 
     gradients = [gradient(n, r) for r in residuals]
     return gauss_newton(residuals, gradients, x0, termination_condition)
+
+
+
+# Takes predicate f with conditions: f(lbound) == False, f(rbound) = True
+def binary_search(f: Callable[[float], bool], lbound: float, rbound: float):
+    while rbound - lbound > 1e-8:
+        m = (lbound + rbound) / 2
+        if f(m):
+            lbound = m
+        else:
+            rbound = m
+
+    return rbound
+
+
+def dogleg(
+        residuals: List[Callable[[np.ndarray], float]],
+        gradients: List[Callable[[np.ndarray], np.ndarray]],
+        linear_search,
+        x0: np.ndarray,
+        trusted_region: Callable[[np.ndarray], float],
+        termination_condition: Callable[[Callable, List[np.ndarray]], bool]
+):
+    f = lambda x: sum((r(x) ** 2 for r in residuals))
+    points = [x0]
+    current = x0
+    while not termination_condition(f, points):
+        trusted = trusted_region(current)
+
+        # TODO: probably can rid of specialization of gauss-newton direction
+        jac = np.array([grad(current) for grad in gradients])
+        gn = -np.linalg.inv(np.transpose(jac) @ jac) @ np.transpose(jac) @ np.array([r(current) for r in residuals])
+
+        if np.linalg.norm(gn - current) < trusted:
+            current += gn
+            continue
+
+        sd = steepest_descent(
+            lambda x: 0.5 * sum((r(x) ** 2 for r in residuals)),
+            lambda x: sum((r(x) * g(x) for r, g in zip(residuals, gradients))),
+            current,
+            linear_search,
+            lambda _, ps: len(ps) > 1
+        )[-1]
+
+        if np.linalg.norm(sd - current) > trusted:
+            print(sd * (trusted / np.linalg.norm(sd)))
+            print(current)
+            current += sd * (trusted / np.linalg.norm(sd))
+        else:
+            t = binary_search(lambda t: np.linalg.norm((gn - sd) * t + sd - current) > trusted, 0, 1)
+            current += (gn - sd) * t + sd
+
+        points.append(current)
+
+    return points
