@@ -91,13 +91,13 @@ def evaluate_methods_on_cosines(methods):
     for (name, optimizer) in methods:
         results = data[name] = []
         for (n, m) in dims:
-            residuals = [(lambda x: np.sin(np.average(x)**2)) for _ in range(m)]
+            residuals = [(lambda x: np.sin(np.average(x))) for _ in range(m)]
             gradients = [symmetric_gradient_computer(residuals[i]) for i in range(m)]
 
             f = lambda x: 0.5 * sum((r(x) ** 2 for r in residuals))
             df = lambda x: sum((r(x) * g(x) for r, g in zip(residuals, gradients)))
 
-            x0 = random_normalized_vector(n)
+            x0 = random_normalized_vector(n) / n
 
             # try:
             points = np.array(optimizer(residuals, gradients, f, df, x0, lambda f, ps: f(ps[-1]) < 1e-9))
