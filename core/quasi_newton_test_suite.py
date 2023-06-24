@@ -82,8 +82,8 @@ def evaluate_quasi_newton_methods_on_form(methods, tl_sec):
 
 
 
-def evaluate_methods_on_cosines(methods):
-    print("—————— Many Dimensions Rosenbrock ——————")
+def evaluate_methods_on_sines(methods):
+    print("—————— Many Dimensions Sines ——————")
     from scipy.optimize import rosen, rosen_der
 
     dims = [(2, 2), (7, 7), (8, 8)]
