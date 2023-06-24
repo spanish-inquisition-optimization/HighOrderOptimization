@@ -91,7 +91,8 @@ def evaluate_methods_on_cosines(methods):
     for (name, optimizer) in methods:
         results = data[name] = []
         for (n, m) in dims:
-            residuals = [(lambda x: np.sin(np.average(x))) for _ in range(m)]
+            coeffs = np.random.random(m)
+            residuals = [(lambda x: np.sin(coeffs[i] * np.average(x))) for i in range(m)]
             gradients = [symmetric_gradient_computer(residuals[i]) for i in range(m)]
 
             f = lambda x: 0.5 * sum((r(x) ** 2 for r in residuals))
