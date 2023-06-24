@@ -29,7 +29,7 @@ def evaluate_quasi_newton_methods_on_rosen(methods):
     from scipy.optimize import rosen, rosen_der
 
     dims = [2, 10, 50, 100]
-    data = { 'dimensions': dims }
+    data = { 'dim': dims }
     for (name, get_approximator, get_initial_approximator) in methods:
         results = data[name] = []
         for n in dims:
@@ -56,7 +56,7 @@ def evaluate_quasi_newton_methods_on_rosen(methods):
 def evaluate_quasi_newton_methods_on_form(methods, tl_sec):
     print("—————— Many Dimensions ——————")
     dims = [2, 10, 50, 100, 1000]
-    data = { 'dimensions': dims }
+    data = { 'dim': dims }
     for (name, get_approximator, get_initial_approximator) in methods:
         results = data[name] = []
         for n in dims:
@@ -87,7 +87,7 @@ def evaluate_methods_on_sines(methods):
     from scipy.optimize import rosen, rosen_der
 
     dims = [(2, 2), (7, 7), (8, 8)]
-    data = { 'dimensions': dims }
+    data = { 'dim': dims }
     for (name, optimizer) in methods:
         results = data[name] = []
         for (n, m) in dims:
@@ -116,7 +116,7 @@ def evaluate_methods_on_square_sums(methods):
     from scipy.optimize import rosen, rosen_der
 
     dims = [(2, 2), (7, 7), (8, 8), (10, 10)]
-    data = { 'dimensions': dims }
+    data = { 'dim': dims }
     for (name, optimizer) in methods:
         results = data[name] = []
         for (n, m) in dims:
