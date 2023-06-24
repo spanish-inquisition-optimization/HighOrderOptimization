@@ -76,3 +76,65 @@ def evaluate_quasi_newton_methods_on_form(methods, tl_sec):
                 print("TL")
 
     print(tabulate(data, headers="keys", tablefmt="grid"))
+
+
+
+
+
+
+def evaluate_methods_on_cosines(methods):
+    print("—————— Many Dimensions Rosenbrock ——————")
+    from scipy.optimize import rosen, rosen_der
+
+    dims = [(2, 2), (7, 7), (8, 8)]
+    data = { 'dimensions': dims }
+    for (name, optimizer) in methods:
+        results = data[name] = []
+        for (n, m) in dims:
+            residuals = [(lambda x: np.sin(np.average(x)**2)) for _ in range(m)]
+            gradients = [symmetric_gradient_computer(residuals[i]) for i in range(m)]
+
+            f = lambda x: 0.5 * sum((r(x) ** 2 for r in residuals))
+            df = lambda x: sum((r(x) * g(x) for r, g in zip(residuals, gradients)))
+
+            x0 = random_normalized_vector(n)
+
+            # try:
+            points = np.array(optimizer(residuals, gradients, f, df, x0, lambda f, ps: f(ps[-1]) < 1e-9))
+            results.append(str(len(points)))
+            print(f"Iterations until convergence for {n}×{m}: {len(points)}")
+            # except Exception as e:
+            #     results.append("×")
+            #     print(f"At n={n}: Failed with {e}")
+
+    print(tabulate(data, headers="keys", tablefmt="grid"))
+
+
+def evaluate_methods_on_square_sums(methods):
+    print("—————— Many Dimensions Sq ——————")
+    from scipy.optimize import rosen, rosen_der
+
+    dims = [(2, 2), (7, 7), (8, 8), (10, 10)]
+    data = { 'dimensions': dims }
+    for (name, optimizer) in methods:
+        results = data[name] = []
+        for (n, m) in dims:
+            residuals = [generate_positive_definite_quadratic_form(n, 200, random_orthonormal_basis) for _ in range(m)]
+            gradients = [residuals[i].gradient_function() for i in range(m)]
+
+            f = lambda x: 0.5 * sum((r(x) ** 2 for r in residuals))
+            df = lambda x: sum((r(x) * g(x) for r, g in zip(residuals, gradients)))
+
+            x0 = random_normalized_vector(n)
+
+            # try:
+            points = np.array(optimizer(residuals, gradients, f, df, x0, lambda f, ps: f(ps[-1]) < 1e-9))
+            results.append(str(len(points)))
+            print(f"Iterations until convergence for {n}×{m}: {len(points)}")
+            # except Exception as e:
+            #     results.append("×")
+            #     print(f"At n={n}: Failed with {e}")
+
+    print(tabulate(data, headers="keys", tablefmt="grid"))
+
+
